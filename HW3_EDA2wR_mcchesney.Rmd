@@ -92,11 +92,18 @@ Peninsula.
 
 ```{r up_counties}
 #county_MI
+subset(county_MI, peninsula == "UP")
+
+#another way
+county_MI[county_MI$peninsula == "UP", ]
+
 ```
 
 Now do the same thing but use dplyr. Do NOT use the pipe operator.
 
 ```{r filter1}
+
+dplyr::filter(county_MI, peninsula == "UP")
 
 ```
 
@@ -104,11 +111,16 @@ Repeat using dplyr and using the pipe operator.
 
 ```{r filter2}
 #county_MI 
+
+county_MI %>% dplyr::filter(peninsula == "UP")
+
 ```
 
 List rows for counties with population greater than or equal to 200000. Use dplyr.
 
 ```{r filter3}
+
+dplyr::filter(county_MI, TotalPop > 200000)
 
 ```
 
@@ -117,12 +129,16 @@ descending order by population. Use dplyr.
 
 ```{r filter4}
 
+county_MI %>% dplyr::filter(TotalPop > 200000) %>% dplyr::arrange(desc(TotalPop))
+
 ```
 
 Counties with median income between 30000 and 40000. Sort in ascending order
 by median income.
 
 ```{r filter5}
+
+county_MI %>% dplyr::filter(TotalPop > 30000, TotalPop < 40000) %>% dplyr::arrange((Income))
 
 ```
 
@@ -134,15 +150,20 @@ Population by county sorted descending by population. Just show county and
 population.
 
 ```{r}
-# county_MI %>%
-#   ???
-#   arrange(???)
+
+county_MI %>% dplyr::select(County, TotalPop) %>% dplyr::arrange(desc(TotalPop))
+
 ```
 
 Counties with population < 50000 and just the columns County, peninsula
 and TotalPop. Sort ascending by population.
 
 ```{r select1}
+
+county_MI %>% 
+  dplyr::filter(TotalPop < 50000) %>%
+  dplyr::select(County, peninsula, TotalPop) %>% 
+  dplyr::arrange(TotalPop)
 
 ```
 
@@ -151,11 +172,21 @@ column 3) along with Income and Poverty. Sort descending by Poverty.
 
 ```{r select2}
 
+county_MI %>% 
+  dplyr::filter(TotalPop < 50000) %>%
+  dplyr::select(1:5, -3, Income, Poverty) %>% 
+  dplyr::arrange(desc(Poverty))
+
 ```
 
 Counties with population > 100000 and just the the first 2 columns, TotalPop, and any column starting with "Inc". Sort descending by Income.
 
 ```{r select3}
+
+county_MI %>% 
+  dplyr::filter(TotalPop > 100000) %>%
+  dplyr::select(1:2, TotalPop, contains("Inc")) %>% 
+  dplyr::arrange(desc(Income))
 
 ```
 
@@ -168,31 +199,43 @@ county. First do it by NOT saving the computed column. Just compute it
 and display the columns County, TotalPop, pct_F. Sort descending by pct_F.
 
 ```{r mutate1}
-# county_MI %>%
-#   mutate(pct_F = ???) %>%
-#   arrange(???) %>%
-#   ???
+county_MI %>%
+  mutate(pct_F = (Women/TotalPop)*100) %>%
+  dplyr::select(County, TotalPop, pct_F) %>% 
+  arrange(desc(pct_F)) 
+   
 ```
 
 Now compute pct_F and save the pct_F column (along with the existing columns) in
 a new data frame called county_MI_x.
 
 ```{r mutate2}
-#county_MI_x <- ???
+county_MI_x <- mutate(county_MI, pct_F = ((Women/TotalPop)*100))
 ```
 
 Show that it worked by using select to show County, TotalPop, pct_F in
 the new data frame.
 
 ```{r mutate3}
-# county_MI_x %>%
-#   ???
+county_MI_x %>%
+   select(County, TotalPop, pct_F)
 ```
 
 County with highest percentage of women? Lowest percentage of women? Create dplyr
 statements that make it easy to answer these questions.
 
 ```{r mutate4a}
+#Highest percentage of women
+county_MI_x %>%
+  select(County, pct_F) %>%
+  arrange(desc(pct_F)) %>%
+  filter(row_number()==1)
+
+#Lowest percentage of women
+county_MI_x %>%
+  select(County, pct_F) %>%
+  arrange(pct_F) %>%
+  filter(row_number()==1)
 
 ```
 
@@ -200,6 +243,12 @@ Now create the following histogram using the ideas from the previous queries.
 
 ```{r}
 knitr::include_graphics('images/histos_pctF_by_peninsula.png')
+
+library(ggplot2)
+
+ggplot(county_MI_x, aes(x=pct_F, fill=peninsula)) +
+  geom_histogram(binwidth = 1, position = "identity")
+
 ```
 
 Confirm that the columns Professional, Service, Office, Construction,  and 
@@ -207,11 +256,15 @@ Production sum up to 100 (within +- .105). There are a number of ways to do
 this. You could use `mutate` and/or use base R commands.
 
 ```{r}
-# tot_job_type <- ???
-# 
-# summary(tot_job_type)
-# err_tol <- 0.105
-# ???
+tot_job_type <- county_MI %>%
+  mutate(TotalJobPct = (Professional + Service + Office + Construction + Production)) %>%
+  select(County, TotalJobPct)
+ 
+summary(tot_job_type)
+ err_tol <- 0.105
+
+tot_job_type %>% 
+ filter((TotalJobPct - 100) > 0.105, (TotalJobPct - 100) < -0.105)  
 ```
 
 
