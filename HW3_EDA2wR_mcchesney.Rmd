@@ -138,7 +138,7 @@ by median income.
 
 ```{r filter5}
 
-county_MI %>% dplyr::filter(TotalPop > 30000, TotalPop < 40000) %>% dplyr::arrange((Income))
+county_MI %>% dplyr::filter(TotalPop > 30000 & TotalPop < 40000) %>% dplyr::arrange((Income))
 
 ```
 
@@ -275,28 +275,28 @@ Use county_MI.
 Find total population by peninsula using dplyr.
 
 ```{r pop_peninsula}
-# county_MI %>%
-#   ??? %>%
-#   ???
+county_MI %>%
+  group_by(peninsula) %>%
+  summarise(sum(TotalPop)) 
 ```
 
 Number of counties by peninsula.
 
 ```{r numcounties_peninsula}
 # One way to do it is with the "shortcut" function count().
-# county_MI %>%
-#   ??? %>%
-#   count()
+county_MI %>%
+  group_by(peninsula) %>%
+  count()
 ```
 
 Repeat the two previous queries using plyr instead of dplyr.
 
 ```{r pop_peninsula_plyr}
-# ddply(???)
+ddply(county_MI, "peninsula", summarize, totalpop=sum(TotalPop))
 ```
 
 ```{r numcounties_peninsula_plyr}
-# ddply(???)
+ddply(county_MI, "peninsula", summarize, numcounties=length(peninsula))
 ```
 
 
@@ -314,18 +314,33 @@ of a median income.
 
 
 ```{r summarystats_mi}
-# county_MI %>%
-#   ??? %>%
-#   summarize(???,
-#             ???,
-#             several more rows))
+county_MI %>%
+ group_by(peninsula) %>%
+ summarize(mean=mean(Income, na.rm=TRUE),
+          median=median(Income, na.rm=TRUE),
+          stddev=sd(Income, na.rm=TRUE),
+          CV=sd(Income) / mean(Income, na.rm=TRUE),
+          IQRange=IQR(Income, na.rm=TRUE),
+          p5=quantile(Income, 0.05, na.rm=TRUE),
+          p25=quantile(Income, 0.25, na.rm=TRUE),
+          p50=quantile(Income, 0.50, na.rm=TRUE),
+          p75=quantile(Income, 0.75, na.rm=TRUE),
+          p95=quantile(Income, 0.95, na.rm=TRUE))
+          
+          
 ```
 
 
-Now look at the entire US. What are the 5th, 50th, and 95th percentile of median income by state? Sort in descending ordery by median of median income.
+Now look at the entire US. What are the 5th, 50th, and 95th percentile of median income by state? Sort in descending order by median of median income.
 
 ```{r summarystats_us}
-
+county_df %>%
+ group_by(State) %>%
+ summarize(median=median(Income, na.rm=TRUE),
+          p5=quantile(Income, 0.05, na.rm=TRUE),
+          p50=quantile(Income, 0.50, na.rm=TRUE),
+          p95=quantile(Income, 0.95, na.rm=TRUE)) %>%
+  arrange(desc(median))
 ```
 
 Which states have the highest average percentage of production workers? Just return the top
@@ -333,12 +348,23 @@ Which states have the highest average percentage of production workers? Just ret
 
 ```{r top10production}
 
+county_df %>%
+ group_by(State) %>%
+  summarize(prodworkers=mean(Production, na.rm=TRUE)) %>%
+  arrange(desc(prodworkers)) %>%
+  top_n(10)
 ```
 
 Which states have the lowest average percentage of people who drive to work?
 Be careful about those NA values...
 
 ```{r lowpctdrive1}
+
+county_df %>%
+ group_by(State) %>%
+  summarize(pctdrive=mean(Drive, na.rm=TRUE)) %>%
+  arrange(pctdrive) %>%
+  top_n(-10)
 
 ```
 
@@ -347,11 +373,24 @@ percentage of people who drive to work? Display State, County and Drive.
 
 ```{r lowpctdrive2}
 
+county_df %>%
+  filter(TotalPop < 75000) %>%
+  select(State, County, Drive) %>%
+  arrange(Drive) %>%
+  top_n(-10)
+  
+
 ```
 
 Repeat the previous query for the state of Michigan.
 
 ```{r lowpctdrive_mi}
+
+county_MI %>%
+  filter(TotalPop < 75000) %>%
+  select(County, Drive) %>%
+  arrange(Drive) %>%
+  top_n(-10)
 
 ```
 
@@ -361,10 +400,14 @@ For this next question you do **not** need plyr or dplyr.
 Create a correlation matrix for total population, per capita income and child poverty. 
 
 ```{r correlation}
-# ???
+
+  cor(select(county_df, TotalPop, IncomePerCap, ChildPoverty), use = "complete.obs")
+
 ```
 
 Write a few sentences interpreting the correlation matrix.
+
+Answer: Everything is perfectly correlated with itself (imagine that!).  Child Poverty and Total Population seem to be not correlated very much at all, with a number so close to zero.  Total Population also doesn't correlate that much with Income, but it does a little with 0.24 - it is positive correlation so higher total population suggest higher income somewhat.  Child Poverty and Income are the strongest correlation, with a lower income correlated with a higher poverty rate.
 
 **Hacker Extra**: Write a function that writes out the summary statistics like
 I did in this example from our Moodle site:
@@ -373,22 +416,36 @@ I did in this example from our Moodle site:
 knitr::include_graphics('images/SummaryStats_Output.png')
 ```
 
+```{r summarystats}
+
+summarystats_v1 <- function(data)
+   print("Measures of central tendency")
+
+summarystats_v1(county_MI$TotalPop)
+
+```
 
 
 Compute the proportion of counties in the US with total population greater than 75000.
 You can do this very easily without dplyr. Hint: mean(). No need for plyr or dplyr.
 
 ```{r pctgt75k}
-# mean(???)
+
+mean(county_df$TotalPop > 75000)
+
 ```
 
 Use dplyr and ggplot along with the pipe operator to create a histogram of SelfEmployed
 for all counties in the US with total population > 75000.
 
 ```{r histo1}
-# county_df %>%
-#   ??? %>%
-#   ggplot(???) + ???
+selfemphist <- county_df %>% 
+  filter(TotalPop > 75000) %>%
+  select(County, SelfEmployed)
+
+ggplot(data = selfemphist, aes(SelfEmployed)) +
+  geom_histogram(bins = 30)+
+  labs(title="Number of Counties (with over 75000 population) by Self Employed Percentage", x="Percentage Self Employed", y="Count")
 ```
 
 
@@ -397,13 +454,20 @@ a data frame to plot. Hint: You'll also want to learn about the `stat` layer in 
 
 
 ```{r create_df_toplot}
-# pop_by_region <- county_df %>%
-#   ??? %>%
-#   ???)
+pop_by_region <- county_df %>%
+   group_by(Region) %>%
+   summarize(Population=sum(TotalPop))
+
+pop_by_region
 ```
 
 ```{r barchart}
-# ggplot(data=pop_by_region) + ???
+#Because scientific notation just looks plain silly on these charts
+options(scipen = 999)
+
+ggplot(data=pop_by_region, aes(x=Region, y=Population)) +
+         geom_bar(stat = "identity") 
+      
 ```
 
 
@@ -411,6 +475,11 @@ Now redo the previous plot but make it a horizontal bar plot and order the bars
 from longest to shortest.
 
 ```{r}
+
+ggplot(data=pop_by_region, aes(x=reorder(Region, Population), y=Population)) +
+  geom_bar(stat = "identity") + 
+  coord_flip() +
+  labs(x="Region")
 
 ```
 
@@ -428,14 +497,21 @@ knitr::include_graphics('images/stacked_bars.png')
 Hint: The tidyr package is helpful.
 
 ```{r}
-# jobtype <- several lines to create dataframe to drive the plot 
+jobtype <- 
+  county_MI %>%
+  filter(County == "Macomb" | County == "Oakland" | County == "Wayne") %>%
+  select(County, Construction, Office, Production, Professional, Service)
+
+jobtype <- tidyr::gather(jobtype, "type", "pct", 2:6)
+
+jobtype
 ```
 
 ```{r}
-# ggplot(jobtype) + 
-#   geom_bar(???)
+ggplot(jobtype, aes(x = County, y = pct, fill = type)) + 
+ geom_bar(stat = "identity")
 
-# Here's how to save a plot to a file
+#Here's how to save a plot to a file
 ggsave('images/stacked_bars_test.png')
 ```
 
